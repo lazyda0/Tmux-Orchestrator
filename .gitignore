@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.DS_Store
+
+# Runtime state
+next_check_note.txt
+.scheduled.pid
