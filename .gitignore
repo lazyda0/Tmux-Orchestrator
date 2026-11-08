@@ -5,3 +5,4 @@ __pycache__/
 # Runtime state
 next_check_note.txt
 .scheduled.pid
+registry/

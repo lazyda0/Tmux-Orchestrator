@@ -246,10 +246,12 @@ The orchestrator can share insights between projects:
 
 ## 📚 Core Files
 
-- `send-claude-message.sh` - Simplified agent communication script
+- `send-claude-message.sh` - Agent messaging with delivery verification
 - `schedule_with_note.sh` - Self-scheduling functionality
-- `tmux_utils.py` - Tmux interaction utilities
-- `CLAUDE.md` - Agent behavior instructions
+- `orchestrator.py` - Reliability layer: persistent schedules, message audit, heartbeats, health checks (stdlib-only, SQLite)
+- `tmux_utils.py` - Tmux inspection utilities
+- `CLAUDE.md` - Agent behavior instructions (core protocol)
+- `docs/playbook.md` - Detailed recipes, loaded on demand
 - `LEARNINGS.md` - Accumulated knowledge base
 
 ## 🤝 Contributing & Optimization
