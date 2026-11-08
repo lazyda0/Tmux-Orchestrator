@@ -481,7 +481,7 @@ When a command fails:
 
 *When to read: composing briefings, coordinating agents, requesting status.*
 
-All messaging goes through `./send-claude-message.sh <target> "message"`. It handles timing, types text literally, verifies delivery, and logs to the audit table. Common patterns:
+All messaging goes through `./send-claude-message.sh <target> "message"`. It handles timing, types text literally, adds a short visible unique verification marker, and logs to the audit table. `verified` means the marker was observed in the pane, not that Claude acknowledged or acted on the message; audit outcomes are `verified`, `failed`, and `unverified`. Automatic retry is limited to failures before tmux accepts input; after `Enter`, an uncertain result is never automatically resubmitted. Common patterns:
 
 ### 1. Starting Claude and Initial Briefing
 ```bash
@@ -521,11 +521,11 @@ sleep 5
 ```
 
 ### 5. Heartbeats
-Every verified message and every fired check-in records a heartbeat automatically. Agents can also record one manually on each check-in:
+Every verified message and successfully delivered check-in records a heartbeat automatically; failed delivery records none. A heartbeat indicates outbound delivery activity, not agent liveness. Manual delivery-activity bookkeeping is also available:
 ```bash
 python3 <orchestrator-dir>/orchestrator.py heartbeat <their-session:window>
 ```
-`orchestrator.py health` flags agents with no heartbeat and no activity for >45 minutes.
+`orchestrator.py health` uses activity and heartbeats to flag stale windows and also reports failed schedules. After resolving a terminal failure, use `orchestrator.py cancel <id>` to acknowledge it and clear the alert. Do not treat a recent heartbeat as proof that an agent is alive or working.
 
 ### Checking for Responses
 ```bash

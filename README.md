@@ -6,7 +6,7 @@
 
 - **Self-trigger** - Agents schedule their own check-ins and continue work autonomously
 - **Coordinate** - Project managers assign tasks to engineers across multiple codebases  
-- **Persist** - Work continues even when you close your laptop
+- **Persist** - Schedules and audit state survive restarts; recovery processes missed check-ins later
 - **Scale** - Run multiple teams working on different projects simultaneously
 
 ## 🏗️ Architecture
@@ -53,6 +53,15 @@ The Tmux Orchestrator uses a three-tier hierarchy to overcome context window lim
 ### Project Completion
 ![Project Completed](Examples/Project%20Completed.png)
 *Successful project completion with all tasks verified and committed*
+
+## ✅ Prerequisites
+
+- Python 3.9 or newer
+- Bash
+- tmux
+- Claude CLI when running real agents
+
+The orchestrator and its tests use only the Python standard library; no Python packages need to be installed.
 
 ## 🎯 Quick Start
 
@@ -207,20 +216,48 @@ We now use the `send-claude-message.sh` script for all agent communication:
 ./send-claude-message.sh project-manager:0 "Please coordinate with the QA team"
 ```
 
-The script handles all timing complexities automatically, making agent communication reliable and consistent.
+The script handles timing, literal input, and delivery verification automatically. Every message carries a short, visible, unique verification marker. A `verified` audit outcome means that marker was observed in the pane—not that Claude sent an ACK or completed the task. Audit outcomes are `verified`, `failed`, and `unverified`. Automatic retry is limited to failures before tmux accepts input; after `Enter`, an uncertain result is not resubmitted because the instruction may already be executing.
 
 ### Scheduling Check-ins
 ```bash
-# Schedule with specific, actionable notes
+# Inside tmux, an omitted target resolves to the current window via TMUX_PANE
 ./schedule_with_note.sh 30 "Review auth implementation, assign next task"
 ./schedule_with_note.sh 60 "Check test coverage, merge if passing"
-./schedule_with_note.sh 120 "Full system check, rotate tasks if needed"
+
+# Outside tmux, always provide an explicit target
+./schedule_with_note.sh 120 "Full system check, rotate tasks if needed" orchestrator:0
+
+# Inspect active schedules or full delivery history
+python3 orchestrator.py list
+python3 orchestrator.py list --all
 ```
+
+Statuses are `pending`, `firing`, `fired`, `failed`, and `cancelled`. Delivery retries for up to three fire rounds, with 30-second then 2-minute backoff only when tmux rejected input before submission. An unverified result after `Enter` becomes `failed` for diagnosis instead of being resent. `list --all` includes attempts and errors, and `python3 orchestrator.py health` reports failed schedules. Use `python3 orchestrator.py cancel <id>` to acknowledge a failed schedule and clear its health alert. Failed delivery does not record a heartbeat; heartbeats represent outbound delivery activity, not agent liveness.
 
 **Important**: The orchestrator needs to know which tmux window it's running in to schedule its own check-ins correctly. If scheduling isn't working, verify the orchestrator knows its current window with:
 ```bash
 echo "Current window: $(tmux display-message -p "#{session_name}:#{window_index}")"
 ```
+
+### Startup and Recovery
+
+On every orchestrator start or restart, run these checks in order:
+```bash
+python3 orchestrator.py doctor
+python3 orchestrator.py install-hooks
+python3 orchestrator.py recover
+CURRENT_WINDOW=$(tmux display-message -p "#{session_name}:#{window_index}")
+echo "Current window: $CURRENT_WINDOW"
+python3 orchestrator.py list
+```
+
+Never create a real schedule just to test startup. Hook installation appends idempotently and preserves existing user hooks. Recovery fires overdue schedules and re-arms future ones.
+
+### Persistence Limits and Test Isolation
+
+Schedules and audit history are stored in the local SQLite database at `registry/orchestrator.db`. A sleeping or powered-off host cannot run jobs; missed work is handled by `recover` after restart. Detaching from tmux leaves the tmux server and its processes running, unlike host shutdown.
+
+For isolated tests, set `TMUX_ORCHESTRATOR_DB` to a temporary database path and `TMUX_ORCHESTRATOR_TMUX_SOCKET` to an isolated tmux socket.
 
 ## 🎓 Advanced Usage
 
